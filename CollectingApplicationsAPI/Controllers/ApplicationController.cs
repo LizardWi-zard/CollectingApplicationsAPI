@@ -5,6 +5,7 @@ using System.Net;
 using Newtonsoft.Json.Linq;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using CollectingApplicationsAPI.Model;
 
 namespace CollectingApplicationsAPI.Controllers
 {
@@ -13,23 +14,13 @@ namespace CollectingApplicationsAPI.Controllers
     public class ApplicationController : ControllerBase
     {
         private readonly ILogger<ApplicationController> _logger;
-        private readonly IGetApplication _getApplication;
+        private readonly IApplicationProvider _getApplication;
 
-        public ApplicationController(ILogger<ApplicationController> logger, IGetApplication getApplication)
+        public ApplicationController(ILogger<ApplicationController> logger, IApplicationProvider getApplication)
         {
             _logger = logger;
             _getApplication = getApplication ?? throw new ArgumentNullException(nameof(getApplication));
         }
-
-  /*      [HttpGet]
-        public async Task<ActionResult<string>> GetAllApplications()
-        {
-            var response = await _getApplication.GetAllApplications();
-
-            string output = (string)response.Data;
-
-            return output;
-        }*/
 
         [HttpGet("/Activities")]
         public async Task<ActionResult<string>> GetActivities()
@@ -57,17 +48,19 @@ namespace CollectingApplicationsAPI.Controllers
 
             var correctGuid = Guid.NewGuid();
             var isGuid = Guid.TryParse(application?.Author.ToString(), out correctGuid);
-            var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion"); ;
+            var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion");
             var correctName = (application.Name != null && application.Name.Length != 0 && application.Name.Length < 100);
             var correctDescription = (application.Description != null  && application.Description.Length < 300);
             var correctOutline = (application.Outline != null && application.Outline.Length != 0 && application.Outline.Length < 1000);
 
-            DbResponse response = new DbResponse();
+            var response = new DbResponse();
 
             if (isGuid && correctActivity && correctName && correctDescription && correctOutline)
             {
                 if (application != null)
                 {
+                    application.Status = "Unsubmitted";
+                    application.EditTime = DateTime.Now;
                     response = await _getApplication.CreateApplication(application);
                 }
             }
@@ -95,19 +88,14 @@ namespace CollectingApplicationsAPI.Controllers
                 return HttpStatusCode.BadRequest.ToString();
             }
 
-            var correctGuid = Guid.NewGuid();
-            var isGuid = Guid.TryParse(application?.Author.ToString(), out correctGuid);
-            var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion"); ;
-            var correctName = (application.Name != null && application.Name.Length != 0 && application.Name.Length < 100);
-            var correctDescription = (application.Description != null && application.Description.Length < 300);
-            var correctOutline = (application.Outline != null && application.Outline.Length != 0 && application.Outline.Length < 1000);
-
             DbResponse response = new DbResponse();
 
-            if (isGuid && correctActivity && correctName && correctDescription && correctOutline)
+            if (IsDataCorrect(application))
             {
                 if (application != null)
-                {   
+                {
+                    application.Status = "Unsubmitted";
+                    application.EditTime = DateTime.Now;
                     response = await _getApplication.EditApplication(Guid.Parse(id), application);
                 }
             }
@@ -188,14 +176,26 @@ namespace CollectingApplicationsAPI.Controllers
             return output;
         }
 
-        [HttpGet("/users/{id}/currentapplication")]
-        public async Task<ActionResult<string>> GetUsersUnsubmittedApplication(string id)
+        [HttpGet("/users/{user}/currentapplication")]
+        public async Task<ActionResult<string>> GetUsersUnsubmittedApplication(string user)
         {
-            var response = await _getApplication.GetUsersUnsubmittedApplication(Guid.Parse(id));
+            var response = await _getApplication.GetUsersUnsubmittedApplication(Guid.Parse(user));
 
             string output = response.Data.ToString();
 
             return output;
+        }
+
+        private bool IsDataCorrect(Application application)
+        {
+            var correctGuid = Guid.NewGuid();
+            var isGuid = Guid.TryParse(application?.Author.ToString(), out correctGuid);
+            var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion"); ;
+            var correctName = (application.Name != null && application.Name.Length != 0 && application.Name.Length < 100);
+            var correctDescription = (application.Description != null && application.Description.Length < 300);
+            var correctOutline = (application.Outline != null && application.Outline.Length != 0 && application.Outline.Length < 1000);
+
+            return (isGuid && correctActivity && correctName && correctDescription && correctOutline);
         }
     }
 }

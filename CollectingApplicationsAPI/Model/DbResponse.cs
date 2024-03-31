@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace CollectingApplicationsAPI
+namespace CollectingApplicationsAPI.Model
 {
     public class DbResponse
     {

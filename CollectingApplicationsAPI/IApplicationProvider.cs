@@ -1,9 +1,10 @@
 ﻿using System.Net;
 using System.Reflection.Metadata;
+using CollectingApplicationsAPI.Model;
 
 namespace CollectingApplicationsAPI
 {
-    public interface IGetApplication
+    public interface IApplicationProvider
     {
         Task<DbResponse> CreateApplication(Application application);
         Task<DbResponse> EditApplication(Guid id, Application application);

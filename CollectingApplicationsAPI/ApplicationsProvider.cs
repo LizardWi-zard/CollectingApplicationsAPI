@@ -9,32 +9,30 @@ using System.Xml.Linq;
 using System.Collections.Generic;
 using static System.Net.Mime.MediaTypeNames;
 using System;
+using CollectingApplicationsAPI.Model;
 
-namespace CollectingApplicationsAPI
+namespace CollectingApplicationsAPI.Model
 {
-    public class ApplicationsCaller : IGetApplication
+    public class ApplicationsProvider : IApplicationProvider
     {
         const string connectionString = "ConnectionStrings:ConnectionString";
 
-        const string selectAllQuery = "SELECT json_agg(\"Applications\") FROM \"Applications\"";
-
-        const string createApplicationQuery = "INSERT INTO \"Applications\" (\"id\", \"Author\", \"Activity\",\"Name\", \"Description\", \"Outline\") " +
-            "VALUES(@id, @Author, @Activity, @Name, @Description, @Outline)";
-
-        const string createApplicationStatusQuery = "INSERT INTO \"ApplicationsStatus\" (\"id\", \"Status\", \"EditTime\") VALUES (@id, @Status, @EditTime)";
-        const string deleteApplicationQuery = "DELETE FROM \"Applications\"  \"ApplicationsStatus\" WHERE \"id\" = @id AND NOT EXISTS (SELECT 1 FROM \"ApplicationsStatus\" WHERE \"ApplicationsStatus\".\"id\" = @id AND \"ApplicationsStatus\".\"Status\" = 'Submitted')";
-        const string updateApplicationQuery = "UPDATE \"Applications\" AS a SET \"Activity\" = @Activity, \"Name\" = @Name, \"Description\" = @Description, \"Outline\" = @Outline FROM \"ApplicationsStatus\" AS s WHERE a.\"id\" = @id AND s.\"id\" = a.\"id\" AND s.\"Status\" = 'Unsubmitted' RETURNING a.*;";
-
-        const string submitApplicationQuery = "UPDATE \"ApplicationsStatus\" SET \"Status\" = 'Submitted' WHERE \"id\" = @id AND \"Status\" != 'Submitted'";
-        const string getApplicationByUuidQuery = "SELECT json_agg(\"Applications\") FROM \"Applications\" WHERE \"id\" = @id";
+        const string selectAllQuery = "SELECT json_agg(applications) AS json_data FROM (SELECT \"Applications\".\"id\", \"Applications\".\"Author\", \"Applications\".\"Activity\",\"Applications\".\"Name\",\"Applications\".\"Description\", \"Applications\".\"Outline\" FROM \"Applications\") AS applications;";
+        const string createApplicationQuery = "INSERT INTO \"Applications\" (\"id\", \"Author\", \"Activity\",\"Name\", \"Description\", \"Outline\", \"Status\", \"EditTime\") VALUES(@id, @Author, @Activity, @Name, @Description, @Outline, @Status, @EditTime)";
+        const string deleteApplicationQuery = "DELETE FROM \"Applications\" WHERE \"id\" = @id AND NOT EXISTS (SELECT 1 FROM \"Applications\" WHERE \"Applications\".\"id\" = @id AND \"Applications\".\"Status\" = 'Submitted')";
+        const string updateApplicationQuery = "UPDATE \"Applications\" AS a SET \"Activity\" = @Activity, \"Name\" = @Name, \"Description\" = @Description, \"Outline\" = @Outline, \"EditTime\" = @EditTime  FROM \"Applications\" AS s WHERE a.\"id\" = @id AND s.\"id\" = a.\"id\" AND s.\"Status\" = 'Unsubmitted' RETURNING a.*;";
+        const string submitApplicationQuery = "UPDATE \"Applications\" SET \"Status\" = 'Submitted' WHERE \"id\" = @id AND \"Status\" != 'Submitted'";
+        const string getApplicationByUuidQuery = "SELECT json_agg(applications) AS json_data FROM (SELECT \"Applications\".\"id\", \"Applications\".\"Author\", \"Applications\".\"Activity\", \"Applications\".\"Name\", \"Applications\".\"Description\",\"Applications\".\"Outline\" FROM \"Applications\" WHERE \"Applications\".\"id\" = @id) AS applications;\r\n";
         const string getActivitiesQuery = "SELECT json_agg(\"Activities\") FROM \"Activities\"";
-        const string getApplicationsSubmittedAfterQuery = "SELECT json_agg(\"Applications\") FROM \"Applications\" WHERE \"id\" IN (SELECT \"id\" FROM \"ApplicationsStatus\" WHERE \"Status\" = 'Submitted' AND \"EditTime\" > @EditTime)";
-        const string getApplicationsUnsubmittedOlderQuery = "SELECT json_agg(\"Applications\") FROM \"Applications\" WHERE \"id\" IN (SELECT \"id\" FROM \"ApplicationsStatus\" WHERE \"Status\" = 'Unsubmitted' AND \"EditTime\" < @EditTime)";
-        const string getUsersUnsubmittedApplicationQuery = "SELECT json_agg(\"Applications\") FROM \"Applications\" WHERE \"id\" IN (SELECT \"id\" FROM \"ApplicationsStatus\" WHERE \"Status\" = 'Unsubmitted' AND \"id\" = @id)";
+        const string getApplicationsSubmittedAfterQuery = "SELECT json_agg(applications) AS json_data FROM (SELECT \"Applications\".\"id\", \"Applications\".\"Author\", \"Applications\".\"Activity\", \"Applications\".\"Name\", \"Applications\".\"Description\",\"Applications\".\"Outline\" FROM \"Applications\" WHERE  \"Applications\".\"Status\" = 'Submitted' AND \"Applications\".\"EditTime\" > @EditTime ) AS applications;";
+        const string getApplicationsUnsubmittedOlderQuery = "SELECT json_agg(applications) AS json_data FROM (SELECT \"Applications\".\"id\", \"Applications\".\"Author\", \"Applications\".\"Activity\", \"Applications\".\"Name\", \"Applications\".\"Description\",\"Applications\".\"Outline\" FROM \"Applications\" WHERE  \"Applications\".\"Status\" = 'Unsubmitted' AND \"Applications\".\"EditTime\" < @EditTime ) AS applications;";
+        const string getUnsubmittedApplicationsFromUser = "SELECT json_agg(applications) AS json_data FROM ( SELECT \"Applications\".\"id\", \"Applications\".\"Author\", \"Applications\".\"Activity\", \"Applications\".\"Name\",  \"Applications\".\"Description\", \"Applications\".\"Outline\" FROM \"Applications\"  WHERE  \"Applications\".\"Status\" = 'Unsubmitted' AND \"Applications\".\"Author\" = @Author LIMIT 1) AS applications;";
+
+        const string getNumberOfUnsubmittedApplicationsFromUser = "SELECT COUNT(*) FROM \"Applications\" WHERE \"Applications\".\"Status\" = 'Unsubmitted' AND \"Applications\".\"Author\" = @Author";
 
         private readonly IConfiguration _configuration;
 
-        public ApplicationsCaller(IConfiguration configuration)
+        public ApplicationsProvider(IConfiguration configuration)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
@@ -43,25 +41,29 @@ namespace CollectingApplicationsAPI
         {
             using var connection = new NpgsqlConnection(_configuration.GetValue<string>(connectionString));
 
-            application.Id = Guid.NewGuid();
+            var unsubmittedCount = await connection.QueryAsync<int>(getNumberOfUnsubmittedApplicationsFromUser, new { Author = application.Author });
 
-            var affected = await connection.ExecuteAsync(createApplicationQuery,
-                          new { application.Id, application.Author, application.Activity, application.Name, application.Description, application.Outline });
-
-            if (affected == 0)
+            if (unsubmittedCount == null)
             {
-                return new DbResponse() { Status = HttpStatusCode.Conflict };
+                return new DbResponse() { Status = HttpStatusCode.NotFound };
             }
 
-            affected = await connection.ExecuteAsync(createApplicationStatusQuery,
-                         new { application.Id, Status = "Unsubmitted", EditTime = DateTime.Now });
-
-            if (affected == 0)
+            if (unsubmittedCount.First() == 0) 
             {
-                return new DbResponse() { Status = HttpStatusCode.Conflict };
+                application.Id = Guid.NewGuid();
+
+                var affected = await connection.ExecuteAsync(createApplicationQuery,
+                              new { application.Id, application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Status, application.EditTime});
+
+                if (affected == 0)
+                {
+                    return new DbResponse() { Status = HttpStatusCode.Conflict };
+                }
+
+                return new DbResponse() { Status = HttpStatusCode.OK, Data = application };
             }
 
-            return new DbResponse() { Status = HttpStatusCode.OK, Data = application };
+            return new DbResponse() { Status = HttpStatusCode.BadRequest, Data = "Unsubmitted applications already exist" };
         }
 
         public async Task<DbResponse> DeleteApplication(Guid id)
@@ -87,7 +89,7 @@ namespace CollectingApplicationsAPI
             application.Id = id;
 
             var affected = await connection.ExecuteAsync(updateApplicationQuery,
-                           new { application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Id });
+                           new { application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Id, application.Status, application.EditTime });
 
             if (affected == 0)
             {
@@ -147,7 +149,6 @@ namespace CollectingApplicationsAPI
             var applications = await connection.QueryAsync<string>(getApplicationByUuidQuery,
                 new {id});
 
-
             if (applications == null)
             {
                 return new DbResponse() { Status = HttpStatusCode.NotFound };
@@ -186,13 +187,12 @@ namespace CollectingApplicationsAPI
             return new DbResponse() { Status = HttpStatusCode.OK, Data = applications.ToArray()[0] };
         }
 
-        public async Task<DbResponse> GetUsersUnsubmittedApplication(Guid id)
+        public async Task<DbResponse> GetUsersUnsubmittedApplication(Guid author)
         {
             using var connection = new NpgsqlConnection(_configuration.GetValue<string>(connectionString));
 
-            var applications = await connection.QueryAsync<string>(getUsersUnsubmittedApplicationQuery,
-                new { id = id });
-
+            var applications = await connection.QueryAsync<string>(getUnsubmittedApplicationsFromUser,
+                new { Author = author });
 
             if (applications == null)
             {
@@ -216,6 +216,5 @@ namespace CollectingApplicationsAPI
 
             return new DbResponse() { Status = HttpStatusCode.OK, Data = true };
         }
-
     }
 }

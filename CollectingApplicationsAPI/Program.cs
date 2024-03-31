@@ -1,3 +1,4 @@
+using CollectingApplicationsAPI.Model;
 
 namespace CollectingApplicationsAPI
 {
@@ -14,7 +15,7 @@ namespace CollectingApplicationsAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            builder.Services.AddScoped<IGetApplication, ApplicationsCaller>();
+            builder.Services.AddScoped<IApplicationProvider, ApplicationsProvider>();
             builder.Configuration.GetConnectionString("ConnectionString");
 
             var app = builder.Build();
