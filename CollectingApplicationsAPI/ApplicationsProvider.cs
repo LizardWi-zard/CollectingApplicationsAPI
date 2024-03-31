@@ -50,10 +50,10 @@ namespace CollectingApplicationsAPI.Model
 
             if (unsubmittedCount.First() == 0) 
             {
-                application.Id = Guid.NewGuid();
+                application.id = Guid.NewGuid();
 
                 var affected = await connection.ExecuteAsync(createApplicationQuery,
-                              new { application.Id, application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Status, application.EditTime});
+                              new { application.id, application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Status, application.EditTime});
 
                 if (affected == 0)
                 {
@@ -86,10 +86,10 @@ namespace CollectingApplicationsAPI.Model
 
             using var connection = new NpgsqlConnection(_configuration.GetValue<string>(connectionString));
 
-            application.Id = id;
+            application.id = id;
 
             var affected = await connection.ExecuteAsync(updateApplicationQuery,
-                           new { application.Author, application.Activity, application.Name, application.Description, application.Outline, application.Id, application.Status, application.EditTime });
+                           new { application.Author, application.Activity, application.Name, application.Description, application.Outline, application.id, application.Status, application.EditTime });
 
             if (affected == 0)
             {
