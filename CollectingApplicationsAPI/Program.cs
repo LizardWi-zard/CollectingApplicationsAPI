@@ -1,6 +1,7 @@
 using CollectingApplicationsAPI.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace CollectingApplicationsAPI
 {
@@ -16,11 +17,17 @@ namespace CollectingApplicationsAPI
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddScoped<IApplicationProvider, ApplicationsProvider>();
-           // builder.Configuration.GetConnectionString("ConnectionString");
-            
+            // builder.Configuration.GetConnectionString("ConnectionString");
+
             var connectionString = builder.Configuration.GetConnectionString("ConnectionString");
 
-            builder.Services.AddDbContext<ApplicationContext>(options => options.UseNpgsql(connectionString));
+            builder.Services.AddDbContext<ApplicationContext>(options =>
+            {
+                options
+                    .UseNpgsql(builder.Configuration.GetConnectionString("ConnectionString"),
+                        assembly =>
+                            assembly.MigrationsAssembly("CollectingApplicationsAPI"));
+            });
 
 
 

@@ -46,16 +46,9 @@ namespace CollectingApplicationsAPI.Controllers
                 return HttpStatusCode.BadRequest.ToString();
             }
 
-            var correctGuid = Guid.NewGuid();
-            var isGuid = Guid.TryParse(application?.Author.ToString(), out correctGuid);
-            var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion");
-            var correctName = (application.Name != null && application.Name.Length != 0 && application.Name.Length < 100);
-            var correctDescription = (application.Description != null  && application.Description.Length < 300);
-            var correctOutline = (application.Outline != null && application.Outline.Length != 0 && application.Outline.Length < 1000);
-
             var response = new DbResponse();
 
-            if (isGuid && correctActivity && correctName && correctDescription && correctOutline)
+            if (IsDataCorrect(application))
             {
                 if (application != null)
                 {
@@ -188,8 +181,7 @@ namespace CollectingApplicationsAPI.Controllers
 
         private bool IsDataCorrect(Application application)
         {
-            var correctGuid = Guid.NewGuid();
-            var isGuid = Guid.TryParse(application?.Author.ToString(), out correctGuid);
+            var isGuid = Guid.TryParse(application?.Author.ToString(), out var correctGuid);
             var correctActivity = (application.Activity != null && application.Activity == "Report" || application.Activity == "Masterclass" || application.Activity == "Discussion"); ;
             var correctName = (application.Name != null && application.Name.Length != 0 && application.Name.Length < 100);
             var correctDescription = (application.Description != null && application.Description.Length < 300);

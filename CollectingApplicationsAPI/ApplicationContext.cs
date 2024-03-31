@@ -12,15 +12,19 @@ namespace CollectingApplicationsAPI
 
         public ApplicationContext(DbContextOptions<ApplicationContext> options) : base(options)
         {
-            Database.EnsureCreated();
         }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        public async Task<int> SaveChangesAsync()
         {
-            // connect to postgres with connection string from app settings
-          //  options.UseNpgsql(Configuration.GetConnectionString("WebApiDatabase"));
-
-
+            return await base.SaveChangesAsync();
+        }
+        public DbSet<T> DbSet<T>() where T : class
+        {
+            return Set<T>();
+        }
+        public new IQueryable<T> Query<T>() where T : class
+        {
+            return Set<T>();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,9 +32,9 @@ namespace CollectingApplicationsAPI
             modelBuilder.Entity<Activity>().HasData(
                 new Activity[]
                 {
-                new Activity { Name="Report", Description = "Доклад, 35-45 минут"},
-                new Activity { Name="Masterclass", Description = "Мастеркласс, 1-2 часа"},
-                new Activity { Name="Discussion", Description = "Дискуссия / круглый стол, 40-50 минут"}
+                new Activity {Id = 1, Name="Report", Description = "Доклад, 35-45 минут"},
+                new Activity {Id = 2, Name="Masterclass", Description = "Мастеркласс, 1-2 часа"},
+                new Activity {Id = 3, Name="Discussion", Description = "Дискуссия / круглый стол, 40-50 минут"}
                 });
         }
     }

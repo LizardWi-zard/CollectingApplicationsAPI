@@ -7,7 +7,7 @@ namespace CollectingApplicationsAPI.Model
     {
         [Column(TypeName = "uuid")]
         [Required]
-        public Guid Id { get; set; }
+        public Guid id { get; set; }
         
         [Required]
         [Column(TypeName = "uuid")]
@@ -31,7 +31,7 @@ namespace CollectingApplicationsAPI.Model
         [Column(TypeName = "varchar")]
         public string? Status { get; set; }
         
-        [Column(TypeName = "date)")]
+        [Column(TypeName = "date")]
         public DateTime? EditTime { get; set; }
     }
 }
