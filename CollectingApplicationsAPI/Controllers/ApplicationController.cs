@@ -22,16 +22,7 @@ namespace CollectingApplicationsAPI.Controllers
             _getApplication = getApplication ?? throw new ArgumentNullException(nameof(getApplication));
         }
 
-        [HttpGet("/Activities")]
-        public async Task<ActionResult<string>> GetActivities()
-        {
-            var response = await _getApplication.GetActivities();
-
-            string output = (string)response.Data;
-
-            return output;
-        }
-
+        // создание заявки
         [HttpPost]
         public async Task<ActionResult<string>> CreateApplication([FromBody] string json)
         {
@@ -67,6 +58,7 @@ namespace CollectingApplicationsAPI.Controllers
             return JsonConvert.SerializeObject(output);
         }
 
+        // редактирование заявки
         [HttpPut("{id}")]
         public async Task<ActionResult<string>> EditApplication([FromRoute] string id, [FromBody] string json)
         {
@@ -102,6 +94,7 @@ namespace CollectingApplicationsAPI.Controllers
             return JsonConvert.SerializeObject(output);
         }
 
+        // удаление заявки
         [HttpDelete("{id}")]
         public async Task<ActionResult<HttpStatusCode>> DeleteDocument(string id)
         {
@@ -110,6 +103,7 @@ namespace CollectingApplicationsAPI.Controllers
             return response.Status;
         }
 
+        // отправка заявки на рассмотрение программным комитетом
         [HttpPost("{id}/submit")]
         public async Task<ActionResult<string>> SubmittingApplication(string id)
         {
@@ -125,6 +119,7 @@ namespace CollectingApplicationsAPI.Controllers
             return response?.Data?.ToString() ?? HttpStatusCode.NotFound.ToString();
         }
 
+        // получение заявки по идентификатору
         [HttpGet("{id}")]
         public async Task<ActionResult<string>> GetApplicationById(string id)
         {
@@ -140,6 +135,7 @@ namespace CollectingApplicationsAPI.Controllers
             return response?.Data?.ToString() ?? HttpStatusCode.NotFound.ToString();
         }
 
+        //получение заявок поданных после указанной даты и получение заявок не поданных и старше определенной даты
         [HttpGet]
         public async Task<ActionResult<string>> GetApplicationsSubmittedAfter([FromQuery] string? submittedAfter, [FromQuery] string? unsubmittedOlder)
         {
@@ -169,12 +165,24 @@ namespace CollectingApplicationsAPI.Controllers
             return output;
         }
 
+        // получение текущей не поданной заявки для указанного пользователя
         [HttpGet("/users/{user}/currentapplication")]
         public async Task<ActionResult<string>> GetUsersUnsubmittedApplication(string user)
         {
             var response = await _getApplication.GetUsersUnsubmittedApplication(Guid.Parse(user));
 
             string output = response.Data.ToString();
+
+            return output;
+        }
+
+        //получение списка возможных типов активности
+        [HttpGet("/Activities")]
+        public async Task<ActionResult<string>> GetActivities()
+        {
+            var response = await _getApplication.GetActivities();
+
+            string output = (string)response.Data;
 
             return output;
         }
